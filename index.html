@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Escaperoom Toets</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: url('https://i.imgur.com/dnQJYfL.png') center center / cover no-repeat;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: #ffffffcc;
+    }
+    #app {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      padding: 20px;
+      width: 90%;
+      max-width: 800px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+      text-align: left;
+    }
+    .question-box {
+      font-size: 1.5rem;
+      margin: 20px 0;
+    }
+    .options label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+    }
+    .options input[type="radio"] {
+      margin-right: 8px;
+    }
+    .navigation {
+      margin: 20px 0;
+      text-align: center;
+    }
+    .nav-button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      margin: 0 10px;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mark {
+      cursor: pointer;
+      font-size: 1.5rem;
+    }
+    .overview {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eee;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .incomplete {
+      background-color: #ffcccb;
+    }
+    .marked {
+      border: 2px solid gold;
+    }
+    #submitBtn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="startScreen">
+      <h1>🧠 Escaperoom Toets</h1>
+      <p>Klik op start om te beginnen. Je hebt 30 minuten voor 20 uitdagende vragen!</p>
+      <button onclick="startGame()">Start</button>
+    </div>
+
+    <div id="gameScreen" style="display:none">
+      <div class="top-bar">
+        <div id="timer">🕒 30:00</div>
+        <div class="mark" onclick="toggleMark()">☆</div>
+      </div>
+      <div class="question-box" id="questionText"></div>
+      <form class="options" id="options"></form>
+      <div class="navigation">
+        <button class="nav-button" onclick="prevQuestion()">← Vorige</button>
+        <button class="nav-button" onclick="nextQuestion()">Volgende →</button>
+      </div>
+    </div>
+
+    <div id="overviewScreen" style="display:none">
+      <h2>Controleer je antwoorden</h2>
+      <div class="overview" id="questionCircles"></div>
+      <button id="submitBtn" onclick="submitAnswers()">Inleveren</button>
+    </div>
+
+    <div id="endScreen" style="display:none">
+      <h2 id="resultHeader"></h2>
+      <p id="resultText"></p>
+      <div id="celebration"></div>
+    </div>
+  </div>
+
+  <script>
+    const questions = [];
+    for (let i = 0; i < 20; i++) {
+      questions.push({ question: `Vraag ${i + 1}`, options: ["A. Optie A", "B. Optie B", "C. Optie C", "D. Optie D"], answer: 0 });
+    }
+    questions.forEach(q => q.userAnswer = null);
+
+    let current = 0;
+    let timer;
+
+    function startGame() {
+      document.getElementById("startScreen").style.display = "none";
+      document.getElementById("gameScreen").style.display = "block";
+      updateQuestion();
+      startTimer(1800);
+    }
+
+    function updateQuestion() {
+      const q = questions[current];
+      document.getElementById("questionText").textContent = q.question;
+      document.querySelector(".mark").textContent = q.marked ? "★" : "☆";
+      const options = document.getElementById("options");
+      options.innerHTML = "";
+      q.options.forEach((opt, idx) => {
+        const id = `opt${idx}`;
+        const label = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = "option";
+        input.value = idx;
+        input.checked = q.userAnswer === idx;
+        input.onchange = () => q.userAnswer = idx;
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(opt));
+        options.appendChild(label);
+      });
+    }
+
+    function nextQuestion() {
+      if (current < questions.length - 1) current++;
+      else {
+        document.getElementById("gameScreen").style.display = "none";
+        document.getElementById("overviewScreen").style.display = "block";
+        showOverview();
+      }
+      updateQuestion();
+    }
+
+    function prevQuestion() {
+      if (current > 0) current--;
+      updateQuestion();
+    }
+
+    function toggleMark() {
+      questions[current].marked = !questions[current].marked;
+      updateQuestion();
+    }
+
+    function showOverview() {
+      const container = document.getElementById("questionCircles");
+      container.innerHTML = "";
+      questions.forEach((q, idx) => {
+        const div = document.createElement("div");
+        div.className = "circle";
+        if (q.userAnswer === null) div.classList.add("incomplete");
+        if (q.marked) div.classList.add("marked");
+        div.textContent = idx + 1;
+        div.onclick = () => {
+          current = idx;
+          document.getElementById("overviewScreen").style.display = "none";
+          document.getElementById("gameScreen").style.display = "block";
+          updateQuestion();
+        };
+        container.appendChild(div);
+      });
+    }
+
+    function submitAnswers() {
+      let score = 0;
+      questions.forEach(q => {
+        if (q.userAnswer === q.answer) score++;
+      });
+
+      document.getElementById("overviewScreen").style.display = "none";
+      document.getElementById("endScreen").style.display = "block";
+
+      const header = document.getElementById("resultHeader");
+      const text = document.getElementById("resultText");
+      const celebration = document.getElementById("celebration");
+
+      if (score === 20) {
+        header.textContent = "🎉 Perfect!";
+        text.textContent = "Je hebt alles goed!";
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.4.0/dist/confetti.browser.min.js";
+        script.onload = () => {
+          confetti();
+        };
+        document.body.appendChild(script);
+      } else {
+        header.textContent = "Bijna!";
+        text.textContent = `Je had ${score} van de 20 goed.`;
+        const iframe = document.createElement("iframe");
+        iframe.width = 560;
+        iframe.height = 315;
+        iframe.src = "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1";
+        iframe.allow = "autoplay";
+        iframe.frameborder = 0;
+        celebration.appendChild(iframe);
+      }
+    }
+
+    function startTimer(seconds) {
+      const display = document.getElementById("timer");
+      let t = seconds;
+      timer = setInterval(() => {
+        const min = Math.floor(t / 60);
+        const sec = t % 60;
+        display.textContent = `🕒 ${min}:${sec < 10 ? "0" + sec : sec}`;
+        if (--t < 0) {
+          clearInterval(timer);
+          submitAnswers();
+        }
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
